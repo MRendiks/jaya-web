@@ -1,0 +1,78 @@
+<?php
+/* Database connection start */
+include "koneksi.php";
+/* Database connection end */
+
+
+// storing  request (ie, get/post) global array to a variable  
+$requestData2= $_REQUEST;
+
+
+$columns = array( 
+// datatable column index  => database column name
+	0 => 'id_supplier',
+    1 => 'nama_instansi', 
+	2 => 'tanggal_pengiriman',
+	3 => 'total_Pembayaran'
+);
+
+// getting total number records without any search
+$sql2 = "SELECT id_supplier, nama_instansi, tanggal_pengiriman, total_pembayaran";
+$sql2.= " FROM supplier";
+$query2=mysqli_query($conn, $sql2) or die("ajax-data-supplier.php: get supplier");
+$totalData = mysqli_num_rows($query2);
+$totalFiltered2 = $totalData2;  // when there is no search parameter then total number rows = total number filtered rows.
+
+
+if( !empty($requestData2['search']['value']) ) {
+	// if there is a search parameter
+	$sql2 = "SELECT id_supplier, nama_instansi, tanggal_pengiriman, total_pembayaran";
+	$sql2.=" FROM supplier";
+	$sql2.=" WHERE id_supplier LIKE '".$requestData2['search']['value']."%' ";    // $requestData['search']['value'] contains search parameter
+	$sql2.=" OR nama_instansi LIKE '".$requestData2['search']['value']."%' ";
+	$sql2.=" OR tanggal_pengiriman LIKE '".$requestData2['search']['value']."%' ";
+    $sql2.=" OR total_pembayaran LIKE '".$requestData2['search']['value']."%' ";
+	$query2=mysqli_query($conn, $sql2) or die("ajax-data-supplier.php: get supplier");
+	$totalFiltered2 = mysqli_num_rows($query2); // when there is a search parameter then we have to modify total number filtered rows as per search result without limit in the query 
+
+	$sql2.=" ORDER BY ". $columns[$requestData2['order'][0]['column']]."   ".$requestData2['order'][0]['dir']."   LIMIT ".$requestData2['start']." ,".$requestData2['length']."   "; // $requestData['order'][0]['column'] contains colmun index, $requestData['order'][0]['dir'] contains order such as asc/desc , $requestData['start'] contains start row number ,$requestData['length'] contains limit length.
+	$query2=mysqli_query($conn, $sql2) or die("ajax-data-supplier.php: get supplier"); // again run query with limit
+	
+} else {	
+
+	$sql2 = "SELECT id_supplier, nama_instansi, total_pengiriman, total_pembayaran";
+	$sql2.= "FROM supplier";
+	$sql2.=" ORDER BY ". $columns[$requestData2['order'][0]['column']]."   ".$requestData2['order'][0]['dir']."   LIMIT ".$requestData2['start']." ,".$requestData2['length']."   ";
+	$query2=mysqli_query($conn, $sql2) or die("ajax-data-supplier.php: get supplier");   
+	
+}
+
+$data2 = array();
+while( $row=mysqli_fetch_array($query2) ) {  // preparing an array
+	$nestedData2=array(); 
+
+	$nestedData2[] = $row["id_supplier"];
+    $nestedData2[] = $row["nama_instansi"];
+    $nestedData2[] = $row["tanggal_pengiriman"];
+    $nestedData2[] = $row["total_pembayaran"];
+    $nestedData2[] = '<td><center>
+                     <a href="edit-supplier.php?id='.$row['id_supplier'].'"  data-toggle="tooltip" title="Edit" class="btn btn-sm btn-primary"> <i class="fa fa-edit"></i> </a>
+				     <a href="supplier.php?aksi=delete&id='.$row['id_supplier'].'"  data-toggle="tooltip" title="Delete" onclick="return confirm(\'Anda yakin akan menghapus data '.$row['fullname'].'?\')" class="btn btn-sm btn-danger"> <i class="fa fa-trash"> </i> </a>
+	                 </center></td>';		
+	
+	$data2[] = $nestedData2;
+    
+}
+
+
+
+$json_data = array(
+			"draw"            => intval( $requestData2['draw'] ),   // for every request/draw by clientside , they send a number as a parameter, when they recieve a response/data they first check the draw number, so we are sending same number in draw. 
+			"recordsTotal"    => intval( $totalData2 ),  // total number of records
+			"recordsFiltered" => intval( $totalFiltered2 ), // total number of records after searching, if there is no searching then totalFiltered = totalData
+			"data"            => $data2   // total data array
+			);
+
+echo json_encode($json_data);  // send data as json format
+
+?>
